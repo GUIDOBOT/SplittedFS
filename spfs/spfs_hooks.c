@@ -68,28 +68,38 @@ SceUID spfs_sceIoOpen(const char * path, int flags, SceMode mode)
 	//only for read mode
 	if(flags & PSP_O_RDONLY)
 	{		
-		//get info from spfs main file
-		spfs_info_t info;
-		if(spfs_get_info(path, &info) > 0)
+		//check that files doesn't exceed the 1mb max
+		SceIoStat file_info;
+		if(sceIoGetstat(path, &file_info) >= 0)
 		{
-			//add to the open files list
-			int index = spfs_find_available();
-			if(index < 0)
-				return -1;
+			if(file_info.st_size <= PART_SIZE)
+			{
+				//get info from spfs main file
+				spfs_info_t info;
+				if(spfs_get_info(path, &info) > 0)
+				{
+					//add to the open files list
+					int index = spfs_find_available();
+					if(index < 0)
+						return -1;
 
-			//create data for this entry
-			files[index].used = 1;
-			files[index].fd = -1;
-			files[index].flags = flags;
-			files[index].info = info;
-			strncpy(files[index].path, path, 0x100);
-			
-			//open first part of the file
-			if(spfs_swap_part(index, 0) < 0)
-				return SPFS_ERROR_PART_NOT_FOUND;
-			
-			//mask the index to recognize its a spfs entry
-			return SPFS_MASK(index);
+					//create data for this entry
+					files[index].used = 1;
+					files[index].fd = -1;
+					files[index].flags = flags;
+					files[index].info = info;
+					strncpy(files[index].path, path, 0x100);
+					
+					//open first part of the file
+					if(spfs_swap_part(index, 0) < 0)
+						return SPFS_ERROR_PART_NOT_FOUND;
+					
+					//mask the index to recognize its a spfs entry
+					return SPFS_MASK(index);
+				};
+			}
+			else 
+				return -1;
 		};
 	};
 	
